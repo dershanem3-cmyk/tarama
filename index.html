@@ -2,67 +2,92 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Biyometrik Tarayıcı</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarama Alanı</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        body { background: #111; color: white; text-align: center; }
-        #container { position: relative; display: inline-block; }
-        #video, #overlay { width: 400px; height: 400px; }
-        #overlay { position: absolute; top: 0; left: 0; }
-        #status { font-size: 20px; color: #0f0; margin-top: 10px; }
+        body { font-family: Arial, sans-serif; text-align: center; background: #eef2f3; }
+        .rules { background: #ffeaa7; padding: 15px; border-radius: 8px; margin: 10px auto; max-width: 500px; text-align: left; font-weight: bold; }
+        .rules p { margin: 5px 0; }
+        .container { background: white; padding: 20px; border-radius: 10px; display: inline-block; margin-top: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        img { width: 100%; max-width: 400px; border-radius: 8px; border: 2px solid #ccc; display: none; transform: scaleX(-1); }
+        .info { font-size: 18px; margin: 15px 0; font-weight: bold; color: #333; }
+        .result { font-size: 80px; margin-top: 10px; }
+        .loading { font-size: 20px; color: #ff9800; font-weight: bold; display: none; }
     </style>
 </head>
 <body>
-    <h2>Biyometrik Tarama Başlatılıyor...</h2>
-    <div id="container">
-        <video id="video" autoplay playsinline></video>
-        <canvas id="overlay"></canvas>
+
+    <div class="rules">
+        <p>1_ Lütfen alnınızı açık tutun</p>
+        <p>2_ Gözlerinizi kameradan ayırmayın dik bakın</p>
+        <p>3_ Gülümseyin</p>
     </div>
-    <div id="status">Sistem Bekleniyor...</div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    <div class="container">
+        <h2>Tarama Merkezi</h2>
+        <p>Kayıt alanından fotoğraf bekleniyor...</p>
+        
+        <img id="gelenFoto" src="" alt="Gelen Yüz Verisi">
+        
+        <div id="loading" class="loading">Yapay Zeka Biyometrik Taramayı Yapıyor...</div>
+        <div id="info" class="info"></div>
+        <div id="resultIcon" class="result"></div>
+    </div>
 
-    const db = getDatabase(initializeApp({ /* firebaseConfig */ }));
-    const video = document.getElementById('video');
-    const overlay = document.getElementById('overlay');
-    const ctx = overlay.getContext('2d');
+    <script>
+        // 1. KENDİ FİREBASE BİLGİLERİNİ BURAYA GİR (kayit.html ile aynı olmalı)
+        const firebaseConfig = {
+            apiKey: "SENIN_API_KEY",
+            authDomain: "SENIN_PROJEN.firebaseapp.com",
+            databaseURL: "https://SENIN_PROJEN.firebaseio.com",
+            projectId: "SENIN_PROJEN",
+            storageBucket: "SENIN_PROJEN.appspot.com",
+            messagingSenderId: "SENDER_ID",
+            appId: "APP_ID"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-    // Kamera
-    navigator.mediaDevices.getUserMedia({video: true}).then(s => video.srcObject = s);
+        const imgEl = document.getElementById('gelenFoto');
+        const infoEl = document.getElementById('info');
+        const resultIcon = document.getElementById('resultIcon');
+        const loadingEl = document.getElementById('loading');
 
-    // Veritabanını Dinle
-    onValue(ref(db, 'biometricGame/profile'), (snapshot) => {
-        const data = snapshot.val();
-        if(!data) return;
+        // 2. Firebase'i Sürekli Dinleme (Realtime)
+        // 'biyometrik_islem' düğümünde bir değişiklik olduğunda anında tetiklenir
+        db.ref('biyometrik_islem').on('value', (snapshot) => {
+            const data = snapshot.val();
+            
+            if (data && data.fotoğraf) {
+                // Ekranı sıfırla ve yeni resmi göster
+                imgEl.src = data.fotoğraf;
+                imgEl.style.display = "block";
+                resultIcon.innerHTML = "";
+                loadingEl.style.display = "block";
+                infoEl.innerHTML = `Aranan Kriter: <b>${data.secilenHedef.toUpperCase().replace(/_/g, ' ')}</b>`;
 
-        let currentIndex = 0;
-        const points = data.points;
+                // 3. Tarama Simülasyonu
+                // Burada yüz tarama kütüphanesi (face-api.js vb.) devreye girmelidir.
+                // Şimdilik 2 saniye bekleyip uyuşma durumunu rastgele simüle ediyoruz.
+                setTimeout(() => {
+                    loadingEl.style.display = "none";
+                    
+                    // Rastgele sonuç oluştur (Gerçek sistemde analiz sonucu buraya gelecek)
+                    const uyumluMu = Math.random() > 0.4; 
 
-        // Her 2 saniyede bir noktayı tara
-        const interval = setInterval(async () => {
-            if(currentIndex >= points.length) {
-                clearInterval(interval);
-                document.getElementById('status').innerText = "✅ Erişim Onaylandı!";
-                return;
+                    if (uyumluMu) {
+                        resultIcon.innerHTML = "✅";
+                        resultIcon.style.color = "green";
+                    } else {
+                        resultIcon.innerHTML = "❌";
+                        resultIcon.style.color = "red";
+                    }
+                }, 2000);
             }
-
-            const p = points[currentIndex];
-            document.getElementById('status').innerText = `Taranıyor: ${p.label}...`;
-
-            // Görsel Tarama Efekti (Overlay'e çiz)
-            ctx.clearRect(0, 0, 400, 400);
-            ctx.strokeStyle = "lime";
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 30, 0, Math.PI*2);
-            ctx.stroke();
-
-            // Küçük bir yapay zeka simülasyonu
-            await new Promise(r => setTimeout(r, 1500));
-            currentIndex++;
-        }, 2000);
-    });
-</script>
+        });
+    </script>
 </body>
 </html>
